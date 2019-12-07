@@ -1,8 +1,6 @@
 module Exercise2 where
 
 import qualified Data.Maybe as Mb
-import Control.Monad(when)
-import Data.Function(on)
 
 type Memo  = [Int]
 type State = (Int, Memo)
