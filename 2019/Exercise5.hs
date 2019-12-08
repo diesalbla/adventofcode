@@ -1,92 +1,15 @@
 module Exercise5 where
 
-import Util 
-
-data Arith =  Add | Mult | LessThan | EqualTo deriving (Eq, Show)
-
-data OpCode = Oper Arith
-          | JumpIf Bool
-          | Inp
-          | OutP
-          | Halt
-  deriving (Eq, Show)
-
-data Param = Position Int | Immediate Int deriving (Eq, Show)
-
-params :: Int -> [Int -> Param]
-params = map fun . digits where 
-  fun  m   = if m == 0 then Position else Immediate
-  digits x = x `mod` 10  : digits (x `quot` 10)
-
-data Instruction = Instruction OpCode [Param] deriving (Eq, Show)
-
-numCodes :: OpCode -> Int
-numCodes op = case op of
-  Halt -> 0
-  JumpIf _ -> 2
-  Oper  _  -> 3
-  Inp -> 1
-  OutP -> 1
-
--- replace ix x xs:  item at postition ix by t
-setAt :: Int -> a -> [a] -> [a]
-setAt _ _ [] = []
-setAt 0 y (_:xs) = y:xs
-setAt i y (x:xs) = x : setAt (i-1) y xs
-
--- parseInstruction is assumed to be at head , so non-empty list 
-instruction :: [Int] -> Instruction
-instruction (ncode:memo) = Instruction opcode ps where
-  opcode = case ncode `mod` 100 of 
-    1  -> Oper Add
-    2  -> Oper Mult
-    3  -> Inp
-    4  -> OutP
-    5  -> JumpIf True
-    6  -> JumpIf False
-    7  -> Oper LessThan
-    8  -> Oper EqualTo
-    99 -> Halt
-  ps     = take (numCodes opcode) $ zipWith ($) (params (ncode `quot` 100)) memo
-
-type Memo  = [Int]
-
-data State = State { progCounter :: Int, memo :: [Int] , outs :: [Int] }
-
-execInst :: Instruction -> State -> Maybe State
-execInst (Instruction Halt _ ) _ = Nothing
-execInst (Instruction opc params) (State pc mem outs) = Just $ case opc of 
-  Inp -> State nextPc (setAt res 5 mem) outs  where
-    [Position res] = params
-  OutP -> State nextPc mem (out: outs)  where
-    [out] = map (evalParam mem) params
-  JumpIf b -> State npc mem outs where
-    [pcond, pjump] = map (evalParam mem) params
-    jumps = (if b then not else id) . (== 0) $ pcond
-    npc = if jumps then pjump else nextPc
-  Oper arith -> State nextPc nmem outs  where
-    nmem = setAt res nval mem
-    [p1, p2, Position res] = params
-    nval = evalParam mem p1 `fun` evalParam mem p2
-    fun = case arith of 
-      Add -> (+)
-      Mult -> (*) 
-      LessThan -> (fromEnum .) . (<)
-      EqualTo ->  (fromEnum .) . (==)
-  where
-    nextPc = pc + 1 + length params
-
-    evalParam :: [Int] -> Param -> Int
-    evalParam mem (Position n ) = mem !! n
-    evalParam _   (Immediate n) = n
+import Util
+import IntCode
 
 --- Step: Just if next state, Nothing is finished. 
 step :: State -> Maybe State
-step st@(State pc mem _) = execInst (instruction (drop pc mem)) st
+step st@(State pc mem _ _) = execInst (instruction (drop pc mem)) st
           
 runProgram :: Memo -> Int
-runProgram = head . outs . last . unfoldMb step . initState where 
-  initState memo = State 0 memo []
+runProgram = head . outps . last . unfoldMb step . initState where 
+  initState memo = State 0 memo [] []
 
 test1 :: Memo
 test1 = [3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99]
