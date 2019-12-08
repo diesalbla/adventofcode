@@ -1,6 +1,7 @@
 module IntCode where
 
-import Util 
+import Util
+import Control.Monad.State
 
 data Arith =  Add | Mult | LessThan | EqualTo deriving (Eq, Show)
 
@@ -9,7 +10,7 @@ data OpCode = Oper Arith | JumpIf Bool | Inp | OutP | Halt deriving (Eq, Show)
 data Param = Position Int | Immediate Int deriving (Eq, Show)
 
 params :: Int -> [Int -> Param]
-params = map fun . digits where 
+params = map fun . digits where
   fun  m   = if m == 0 then Position else Immediate
   digits x = x `mod` 10  : digits (x `quot` 10)
 
@@ -24,16 +25,16 @@ numCodes op = case op of
   OutP -> 1
 
 execArith :: Arith -> (Int -> Int -> Int)
-execArith arith = case arith of 
+execArith arith = case arith of
   Add -> (+)
-  Mult -> (*) 
+  Mult -> (*)
   LessThan -> (fromEnum .) . (<)
   EqualTo ->  (fromEnum .) . (==)
 
--- parseInstruction is assumed to be at head , so non-empty list 
+-- parseInstruction is assumed to be at head , so non-empty list
 instruction :: [Int] -> Instruction
 instruction (ncode:memo) = Instruction opcode ps where
-  opcode = case ncode `mod` 100 of 
+  opcode = case ncode `mod` 100 of
     1  -> Oper Add
     2  -> Oper Mult
     3  -> Inp
@@ -47,34 +48,68 @@ instruction (ncode:memo) = Instruction opcode ps where
 
 type Memo  = [Int]
 
-evalParam :: [Int] -> Param -> Int
-evalParam mem (Position n ) = mem !! n
-evalParam _   (Immediate n) = n
+data IntVM = IntVM { progCounter :: Int, memory :: [Int] , inps :: [Int] , outps :: [Int] }
 
-data State = State { progCounter :: Int, memo :: [Int] , inps :: [Int] , outps :: [Int] }
+evalParam :: Monad m => Param -> StateT IntVM m Int
+evalParam param = case param of
+  Immediate val -> pure val
+  Position  pos -> gets ((!! pos) . memory)
 
-execInst :: Instruction -> State -> Maybe State
-execInst (Instruction Halt _ ) _ = Nothing
-execInst (Instruction opc params) (State pc mem ins outs) = Just $ case opc of 
-  Inp -> State nextPc (setAt res (head ins) mem) (tail ins) outs  where
-    [Position res] = params
-  OutP -> State nextPc mem ins  (out: outs)  where
-    [out] = map (evalParam mem) params
-  JumpIf b -> State npc mem ins outs where
-    [pcond, pjump] = map (evalParam mem) params
-    jumps = (if b then not else id) . (== 0) $ pcond
-    npc = if jumps then pjump else nextPc
-  Oper arith -> State nextPc nmem ins outs  where
-    nmem = setAt res nval mem
-    [p1, p2, Position res] = params
-    nval = execArith arith (evalParam mem p1) (evalParam mem p2)
-  where
-    nextPc = pc + 1 + length params
+store :: Monad m => Int -> Int -> StateT IntVM m ()
+store pos val = modify (\st -> st { memory = setAt pos val (memory st) } )
 
---- Step: Just if next state, Nothing is finished. 
-execStep :: State -> Maybe State
-execStep st@(State pc mem _ _) = execInst (instruction (drop pc mem)) st
-          
--- evalProgram: takes program and inputs, leads outputs. 
+continueAt :: Monad m => (Int -> Int) -> StateT IntVM m ()
+continueAt f = modify (\st -> st { progCounter = f (progCounter st) })
+
+enqueueInput :: Monad m => Int -> StateT IntVM m ()
+enqueueInput i = modify $ \st -> st { inps = inps st ++ [i] }
+
+popInput :: Monad m => StateT IntVM m Int
+popInput = do
+  st @ (IntVM _ _ (i:is) _) <- get
+  put $ st { inps = is }
+  pure i
+
+popOutput :: Monad m => StateT IntVM m Int
+popOutput = do
+  st @ (IntVM _ _ _ (o:os)) <- get
+  put $ st { outps = os }
+  pure o
+
+pushOutput :: Monad m => Int -> StateT IntVM m ()
+pushOutput o = do
+  st @ (IntVM _ _ _ os) <- get
+  put $ st { outps = o:os }
+
+noOutput :: Monad m => StateT IntVM m Bool
+noOutput = gets (null . outps)
+
+fetch :: Monad m => StateT IntVM m Instruction
+fetch = gets $ \st  -> instruction $ drop (progCounter st) (memory st)
+
+execInst :: Monad m => Instruction -> StateT IntVM m ()
+execInst (Instruction inst params) = case (inst, params) of
+  (Halt, _) ->
+    lift $ fail "IntCode program finished"
+  (Inp, [Position res]) -> do
+    store res =<< popInput
+    continueAt (2 +)
+  (OutP,  [param]) -> do
+    pushOutput =<< evalParam param
+    continueAt (2 +)
+  (JumpIf b, [pcond, pjump]) ->
+    let decide cond jump = if sw cond then const jump else (3 +)
+        sw = (if b then not else id) . (== 0)
+    in
+      continueAt =<< (decide <$> evalParam pcond <*> evalParam pjump)
+  (Oper arith, [p1, p2, Position pos]) -> do
+    store pos =<< (execArith arith <$> evalParam p1 <*> evalParam p2)
+    continueAt (4 +)
+
+--- Step: Just if next state, Nothing is finished.
+execStep :: Monad m => IntVM -> m IntVM
+execStep = execStateT (fetch >>= execInst)
+
+-- evalProgram: takes program and inputs, leads outputs.
 evalProgram :: Memo -> [Int] -> [Int]
-evalProgram memo ins = outps . last . unfoldMb execStep $ State 0 memo ins []
+evalProgram memo ins = outps . last . unfoldMb execStep $ IntVM 0 memo ins []
