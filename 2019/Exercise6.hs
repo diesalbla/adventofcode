@@ -1,15 +1,12 @@
 module Exercise6 where
 
 import qualified Data.Map as M
-import qualified Data.Maybe as Mb
+import Util
 
 type Orbit = M.Map String String
 
 parseOrbit :: [(String, String)] -> Orbit
 parseOrbit = M.fromList . map Data.Tuple.swap
-
-unfoldMb :: (a -> Maybe a) -> a -> [a]
-unfoldMb f = Mb.catMaybes . takeWhile Mb.isJust . iterate (>>= f) . Just
 
 type Tally = M.Map String Int
 

@@ -1,6 +1,6 @@
 module Exercise2 where
 
-import qualified Data.Maybe as Mb
+import Util(unfoldMb)
 
 type Memo  = [Int]
 type State = (Int, Memo)
@@ -21,12 +21,9 @@ step (pc, mem) = if head tetra == 99 then Nothing else Just (pc+1, nmem) where
       oper 1 = (+)
       oper 2 = (*)
 
-compute :: State -> State
-compute = last . Mb.catMaybes . takeWhile Mb.isJust . iterate (>>= step) . Just
-
 runProgram :: Int -> Int -> Memo -> Int
 runProgram name verb =
-  head . snd . compute . ((,) 0) . setAt 1 name . setAt 2 verb
+  head . snd . last . (unfoldMb step) . ((,) 0) . setAt 1 name . setAt 2 verb
 
 findValues:: Int
 findValues = head $ do
