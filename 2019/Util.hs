@@ -11,3 +11,6 @@ setAt _ _ [] = []
 setAt 0 y (_:xs) = y:xs
 setAt i y (x:xs) = x : setAt (i-1) y xs
 
+whileM_ :: (Monad m) => m Bool -> m () -> m ()
+whileM_ p f = go where
+  go = p >>= (\b -> if b then f >> go else pure ())
