@@ -3,6 +3,7 @@ module Exercise4 where
 import Data.List(lookup)
 import Data.Maybe(catMaybes)
 import Data.Char(isDigit, isHexDigit)
+import Util(splitAtElem)
 
 {-
 > The automatic passport scanners are slow because they're having trouble detecting
@@ -39,14 +40,6 @@ parsePassport ps =
       pid = lookup "pid" ps
       cid = pure (lookup "cid" ps)
   in pure Passport <*> byr <*> iyr <*> eyr <*> hgt <*> hcl <*> ecl <*> pid <*> cid 
-
-splitAtElem :: Eq a => a -> [a] -> [[a]]
-splitAtElem _ [] = []
-splitAtElem e as =
-  let (pre, suff) = span (/= e) as
-      pref = if null pre then [] else [pre]
-      sufx = splitAtElem e (dropWhile (== e) suff)
-  in  pref ++ sufx
 
 parseChunk :: [String] -> Maybe Passport
 parseChunk = parsePassport . map splitPair. concatMap (splitAtElem ' ')
