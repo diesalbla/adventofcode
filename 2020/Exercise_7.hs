@@ -4,6 +4,7 @@ import Control.Applicative((<|>))
 import Data.List(isPrefixOf, stripPrefix)
 import Data.Functor((<&>))
 import qualified Data.Maybe as Mb
+import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Char(isDigit)
 import Util
@@ -85,9 +86,35 @@ test2 = parseRule text == Just expected where
                                  , ("mirrored black", 5)
                                  ]
 
+tally :: M.Map Color [(Color, Int)] -> ([(Color, Int)], Int) -> ([(Color, Int)], Int)
+tally rules (frontier, acc) = (nfrontier, acc + sum (map snd frontier)) where
+  nfrontier = do (cl, n) <- frontier
+                 (k, m)  <- (rules M.! cl)
+                 pure (k, m*n)
+                              
+problem2 :: [Rule] -> Int
+problem2 rules =
+  let require = M.fromList . map (\ (Rule c ps) -> (c, ps)) $ rules
+      initState = ([("shiny gold", 1)], 0)
+  in  snd . head . dropWhile (not . null . fst) . iterate (tally require) $ initState
+      
 parseRulesFile :: IO [Rule]
 parseRulesFile = readFile "input7.txt"
                   <&> (Mb.catMaybes . map parseRule . filter (not . null) . lines)
 
-runProblem = parseRulesFile <&> problem1 >>= (putStrLn . show)
+runProblemA = parseRulesFile <&> problem1 >>= (putStrLn . show)
+runProblemB = parseRulesFile <&> problem2 >>= (putStrLn . show)
+
     
+examplePart2 =
+  let rules = [ Rule "shiny gold" [("dark red", 2)]
+              , Rule "dark red"   [("dark orange", 2)]
+              , Rule "dark orange" [("dark yellow", 2)]
+              , Rule "dark yellow" [("dark green", 2)]
+              , Rule "dark green"  [("dark blue", 2)]
+              , Rule "dark blue"   [("dark violet", 2)]
+              , Rule "dark violet" []
+              ]
+  in problem2 rules - 1 == 126
+
+              
