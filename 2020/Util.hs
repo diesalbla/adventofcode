@@ -13,3 +13,6 @@ splitAtElem e as =
 
 unfoldMb :: (a -> Maybe a) -> a -> [a]
 unfoldMb f = Mb.catMaybes . takeWhile Mb.isJust . iterate (>>= f) . Just
+
+longerThan :: Int -> [a] -> Bool
+longerThan len = (== len) . length . take len
