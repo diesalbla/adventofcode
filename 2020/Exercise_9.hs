@@ -36,13 +36,25 @@ testInput1 = [35, 20, 15, 25, 47, 40, 62, 55, 65, 95, 102, 117, 150, 182, 127, 2
 testProblem1 = problem1 5 testInput1
 testProblem2 = problem2 5 testInput1 == 62
 
-findContiguousSum :: (Eq a, Num a) => a -> [a] -> [[a]]
+segmentsWithSum :: (Eq a, Num a) => a -> [a] -> [[a]]
 findContiguousSum target = 
   filter ( (== target) . sum ) . filter (not . null) . (=<<) inits . tails
 
 problem2 :: (Num a, Ord a) => Int -> [a] -> a
-problem2 len xs = secret . head . findContiguousSum (problem1 len xs) $ xs
+problem2 len xs = secret . segmentSum (problem1 len xs) $ xs
   where secret ys = maximum ys + minimum ys
 
 parseInput :: IO [Int]
 parseInput = readFile "input9.txt" <&> ( map read . filter (not . null) . lines)
+
+
+-- A more efficient algorithm to find segment with sum: since all
+-- elements are positive, we can use a worm to crawl through the list.
+-- adding header (the end of segment) and a subtracting head (start of segment)
+segmentSum :: (Ord a, Num a) => a -> [a] -> [a]
+segmentSum target xs = go xs xs 0 where
+  go as bs acc =
+    case acc `compare` target of
+      LT -> go (tail as) bs (acc + head as)
+      GT -> go as (tail bs) (acc - head bs)
+      EQ -> take (length bs - length as) bs
