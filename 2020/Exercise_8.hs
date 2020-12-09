@@ -75,9 +75,6 @@ Fix the program so that it terminates normally by changing
 exactly one jmp (to nop) or nop (to jmp).
 What is the value of the accumulator after the program terminates?
 -}
-hasLoop :: [(Compute, S.Set Int)] -> Bool
-hasLoop = not . null . filter (uncurry hasLooped)
-
 mutations :: [Inst] -> [[Inst]]
 mutations [] = []
 mutations (inst: insts) = mutateHead ++ mutatedTails
@@ -88,4 +85,5 @@ mutations (inst: insts) = mutateHead ++ mutatedTails
           Nop v -> [Jmp v: insts]
 
 part2 :: [Inst] -> Int
-part2 = accumulator . last . map fst . head . filter (not . hasLoop) . map zippedRun . mutations
+part2 = accumulator . fst . last . head . filter halts . map zippedRun . mutations
+  where halts = not . any (uncurry hasLooped)
