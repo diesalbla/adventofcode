@@ -1,7 +1,5 @@
-
 module Exercise8 where
 
-import qualified Data.Maybe as Mb
 import Data.Functor((<&>))
 import qualified Data.Set as S
 import Util
@@ -12,15 +10,7 @@ Each instruction consists of an operation (acc, jmp, or nop)
 and an argument (a signed number like +4 or -20).
 -}
 
-unfoldMb :: (a -> Maybe a) -> a -> [a]
-unfoldMb f = Mb.catMaybes . takeWhile Mb.isJust . iterate (>>= f) . Just
-
-
-data Inst = Acc Int
-          | Jmp Int
-          | Nop Int
-  deriving (Eq, Ord, Show)
-
+data Inst = Acc Int | Jmp Int | Nop Int deriving (Eq, Ord, Show)
 
 parseInst :: String -> Inst
 parseInst str =
@@ -62,24 +52,20 @@ traceProgram :: [Inst] -> [Compute]
 traceProgram = unfoldMb runStep . initState where
   initState prog = Compute prog 0 0
 
-{- collectSemantics !! i == all positions visited before state i
--}
-collectSemantics :: [Compute] -> [S.Set Int]
-collectSemantics = scanl (flip S.insert) S.empty . map progCounter
+zippedRun :: [Inst] -> [(Compute, S.Set Int)]
+zippedRun prog =  trace `zip` visited where
+  trace   = traceProgram prog
+  visited = scanl (flip S.insert) S.empty . map progCounter $ trace
 
 {-
 Immediately before any instruction is executed a second time,
 what value is in the accumulator?
 -}
 part1 :: [Inst] -> Int
-part1 prog = accumulator . fst . last . takeWhile (not . (uncurry hasLooped)) $ zipped
-  where
-  trace      = traceProgram prog
-  preVisited = collectSemantics trace
-  zipped     = zip trace preVisited
+part1 = accumulator . fst . last . takeWhile (not . (uncurry hasLooped)) . zippedRun
 
 hasLooped :: Compute -> S.Set Int -> Bool
-hasLooped cmp vis = S.member (progCounter cmp) vis
+hasLooped = S.member . progCounter
 
 parseInput :: IO [Inst]
 parseInput = readFile "input8.txt" <&> ( map parseInst . filter (not . null) . lines)
@@ -89,10 +75,8 @@ Fix the program so that it terminates normally by changing
 exactly one jmp (to nop) or nop (to jmp).
 What is the value of the accumulator after the program terminates?
 -}
-hasLoop :: [Inst] -> Bool
-hasLoop prog = not . null . filter (uncurry hasLooped) $ zip trace preVisited
-  where trace      = traceProgram prog
-        preVisited = collectSemantics trace
+hasLoop :: [(Compute, S.Set Int)] -> Bool
+hasLoop = not . null . filter (uncurry hasLooped)
 
 mutations :: [Inst] -> [[Inst]]
 mutations [] = []
@@ -104,4 +88,4 @@ mutations (inst: insts) = mutateHead ++ mutatedTails
           Nop v -> [Jmp v: insts]
 
 part2 :: [Inst] -> Int
-part2 = accumulator . last . traceProgram . head . filter (not . hasLoop) . mutations
+part2 = accumulator . last . map fst . head . filter (not . hasLoop) . map zippedRun . mutations

@@ -1,5 +1,6 @@
 module Util where
 
+import qualified Data.Maybe as Mb
 
 splitAtElem :: Eq a => a -> [a] -> [[a]]
 splitAtElem _ [] = []
@@ -9,3 +10,6 @@ splitAtElem e as =
       sufx = splitAtElem e (dropWhile (== e) suff)
   in  pref ++ sufx
 
+
+unfoldMb :: (a -> Maybe a) -> a -> [a]
+unfoldMb f = Mb.catMaybes . takeWhile Mb.isJust . iterate (>>= f) . Just
