@@ -21,3 +21,16 @@ countBy p = length . filter p
 
 count :: Eq a => a -> [a] -> Int
 count a = countBy (== a)
+
+uncurry3 :: (a -> b -> c -> d) -> (a,b,c) -> d
+uncurry3 f (a, b, c) = f a b c
+
+
+fixpoint :: Eq a => (a -> a) -> a -> a
+fixpoint fun initial = fst . head . filter (uncurry (==) ) $ sts `zip` tail sts where
+  sts = iterate fun initial
+
+
+fst3 (x, _, _) = x
+snd3 (_, x, _) = x
+trd3 (_, _, x) = x
