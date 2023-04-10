@@ -60,7 +60,6 @@ scoreRight x y =
   let out = contest y x
   in outScore out + rpsScore y
 
-
 testInput = ["A Y", "B X", "C Z"]
   
 problem1 = sum . map (uncurry scoreRight . parseLine1)
@@ -88,7 +87,6 @@ achieve out x =
         Lose -> 2
         Draw -> 0
   in shiftRps num x
-
 
 parseLine2 :: String -> (Rps, Rps)
 parseLine2 [x, ' ', y] =
