@@ -13,6 +13,9 @@ fullSucc = shiftEnum 3 1
 shiftRps :: Int -> Rps -> Rps
 shiftRps n = shiftEnum 3 n 
 
+{-- For a finite enumeration with "total" elements, cycle back (or forth)
+ a number of `shift` positions from a given element. 
+--}
 shiftEnum :: Enum a => Int -> Int -> a -> a
 shiftEnum total shift elem = toEnum $ (fromEnum elem + shift) `mod` total
 
