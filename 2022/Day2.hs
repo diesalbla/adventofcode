@@ -8,10 +8,13 @@ data Outcome = Lose | Draw | Win  deriving (Eq, Show, Enum)
 data Rps = Rock | Paper | Scissors deriving (Eq, Show, Enum)
 
 fullSucc :: Rps -> Rps
-fullSucc = shiftRps 1
+fullSucc = shiftEnum 3 1
 
 shiftRps :: Int -> Rps -> Rps
-shiftRps n = toEnum . (`mod` 3) . (+ n) . fromEnum
+shiftRps n = shiftEnum 3 n 
+
+shiftEnum :: Enum a => Int -> Int -> a -> a
+shiftEnum total shift elem = toEnum $ (fromEnum elem + shift) `mod` total
 
 {--
 > Rock defeats Scissors, Scissors defeats Paper, and Paper defeats Rock.
